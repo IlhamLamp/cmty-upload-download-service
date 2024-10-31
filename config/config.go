@@ -12,6 +12,7 @@ type Config struct {
 	CloudinaryApiSecret string
 	CloudinaryCloudName string
 	JwtAccessSecret     string
+	RabbitMQUrl string
 }
 
 func LoadConfig() Config {
@@ -25,6 +26,7 @@ func LoadConfig() Config {
 		CloudinaryApiSecret: os.Getenv("CLOUDINARY_API_SECRET"),
 		CloudinaryCloudName: os.Getenv("CLOUDINARY_CLOUD_NAME"),
 		JwtAccessSecret:     os.Getenv("JWT_ACCESS_SECRET"),
+		RabbitMQUrl: os.Getenv("RABBITMQ_URL"),
 	}
 
 	if config.CloudinaryApiKey == "" || config.CloudinaryApiSecret == "" ||
