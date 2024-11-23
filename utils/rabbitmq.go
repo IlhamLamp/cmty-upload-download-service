@@ -1,7 +1,9 @@
 package utils
 
 import (
+	"go-upload-download-service/config"
 	"log"
+	"sync"
 
 	"github.com/streadway/amqp"
 )
@@ -10,6 +12,8 @@ type RabbitMQClient struct {
 	conn    *amqp.Connection
 	channel *amqp.Channel
 	queue   amqp.Queue
+	closed  bool
+	mu      sync.Mutex
 }
 
 func NewRabbitMQClient(amqpURL, queueName string) (*RabbitMQClient, error) {
@@ -42,10 +46,19 @@ func NewRabbitMQClient(amqpURL, queueName string) (*RabbitMQClient, error) {
 		conn:    conn,
 		channel: channel,
 		queue:   queue,
+		closed:  false,
 	}, nil
 }
 
 func (r *RabbitMQClient) PublishDeleteImageMessage(publicId string) error {
+	if r.IsClosed() {
+		err := r.Reconnect()
+		if err != nil {
+			log.Printf("Failed to reconnect to RabbitMQ: %v", err)
+			return err
+		}
+	}
+
 	err := r.channel.Publish(
 		"",
 		r.queue.Name,
@@ -66,7 +79,14 @@ func (r *RabbitMQClient) PublishDeleteImageMessage(publicId string) error {
 }
 
 func (r *RabbitMQClient) StartConsumer() (<-chan amqp.Delivery, error) {
-	return r.channel.Consume(
+	if r.IsClosed() {
+		err := r.Reconnect()
+		if err != nil {
+			log.Printf("Failed to reconnect to RabbitMQ: %v", err)
+			return nil, err
+		}
+	}
+	msgs, err := r.channel.Consume(
 		r.queue.Name,
 		"",
 		true,
@@ -75,6 +95,48 @@ func (r *RabbitMQClient) StartConsumer() (<-chan amqp.Delivery, error) {
 		false,
 		nil,
 	)
+	if err != nil {
+		log.Printf("Failed to start consumer: %v", err)
+		return nil, err
+	}
+	return msgs, nil
+}
+
+func (r *RabbitMQClient) IsClosed() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	return r.closed
+}
+
+func (r *RabbitMQClient) Reconnect() error {
+	conf := config.LoadConfig()
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if !r.closed {
+		return nil
+	}
+
+	conn, err := amqp.Dial(conf.GetRabbitMQUrl())
+	if err != nil {
+		log.Printf("Failed to reconnect to RabbitMQ: %v", err)
+		return err
+	}
+
+	channel, err := conn.Channel()
+	if err != nil {
+		log.Printf("Failed to open a new channel: %v", err)
+		conn.Close()
+		return err
+	}
+
+	r.conn = conn
+	r.channel = channel
+	r.closed = false
+
+	log.Println("Successfully reconnected to RabbitMQ")
+	return nil
 }
 
 func (r *RabbitMQClient) GetQueueName() string {
@@ -86,6 +148,13 @@ func (r *RabbitMQClient) GetChannel() *amqp.Channel {
 }
 
 func (r *RabbitMQClient) Close() {
-	r.channel.Close()
-	r.conn.Close()
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if !r.closed {
+		r.channel.Close()
+		r.conn.Close()
+		r.closed = true
+		log.Println("RabbitMQ connection closed")
+	}
 }
