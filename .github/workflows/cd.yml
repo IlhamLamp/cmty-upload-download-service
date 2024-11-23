@@ -1,0 +1,76 @@
+name: Continuous Deployment
+
+on:
+  workflow_run:
+    workflows: ["Continuous Integration"]
+    types:
+      - completed
+
+jobs:
+  check_connection:
+    runs-on: [self-hosted, upload-download-service]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Check runner connectivity
+        run: |
+          ping -c 5 google.com
+          if [ $? -ne 0]; then
+            echo "Runner connectivity issue. Please check your network configuration."
+            exit 1
+          fi
+  deploy:
+    runs-on: [self-hosted, upload-download-service]
+    needs: check_connection
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create .env file for Docker Compose
+        run: |
+          echo "APP_PORT=${{ secrets.APP_PORT }}" >> .env
+          echo "APP_NAME=${{ secrets.APP_NAME }}" >> .env
+          echo "CLOUDINARY_API_KEY=${{ secrets.CLOUDINARY_API_KEY }}" >> .env
+          echo "CLOUDINARY_API_SECRET=${{ secrets.CLOUDINARY_API_SECRET }}" >> .env
+          echo "CLOUDINARY_CLOUD_NAME=${{ secrets.CLOUDINARY_CLOUD_NAME }}" >> .env
+          echo "RABBITMQ_USER=${{ secrets.RABBITMQ_USER }}" >> .env
+          echo "RABBITMQ_PASSWORD=${{ secrets.RABBITMQ_PASSWORD }}" >> .env
+          echo "RABBITMQ_HOST=${{ secrets.RABBITMQ_HOST }}" >> .env
+          echo "RABBITMQ_PORT=${{ secrets.RABBITMQ_PORT }}" >> .env
+          echo "JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }}" >> .env
+          echo "JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}" >> .env
+
+      - name: Verify .env file
+        run: |
+          cat .env
+          echo "Environment variables loaded successfully!"
+
+      - name: Pull authentication docker image
+        run: |
+          echo "Pulling Docker image..."
+          docker pull ${{ secrets.DOCKER_USERNAME }}/upload-download-service:latest
+          echo "Image pulled successfully!"
+
+      - name: Removing old containers and images
+        run: |
+          echo "Removing old containers and images..."
+          docker rm -f upload-download-service-container rabbitmq-container || true
+          docker images -f "dangling=true" -q | xargs --no-run-if-empty docker rmi
+          echo "Cleanup complete!"
+
+      - name: Deploy services with Docker Compose
+        run: |
+          echo "Starting Docker Compose..."
+          docker-compose --env-file .env config
+          docker-compose --env-file .env up -d --remove-orphans
+          echo "Deployment successful!"
+
+      - name: Clean up .env file
+        run: rm .env
