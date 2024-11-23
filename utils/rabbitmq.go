@@ -1,19 +1,21 @@
 package utils
 
 import (
+	"github.com/streadway/amqp"
 	"go-upload-download-service/config"
 	"log"
 	"sync"
-
-	"github.com/streadway/amqp"
+	"time"
 )
 
 type RabbitMQClient struct {
-	conn    *amqp.Connection
-	channel *amqp.Channel
-	queue   amqp.Queue
-	closed  bool
-	mu      sync.Mutex
+	conn      *amqp.Connection
+	channel   *amqp.Channel
+	queue     amqp.Queue
+	closed    bool
+	mu        sync.Mutex
+	lastUsed  time.Time
+	idleTimer *time.Timer
 }
 
 func NewRabbitMQClient(amqpURL, queueName string) (*RabbitMQClient, error) {
@@ -42,12 +44,40 @@ func NewRabbitMQClient(amqpURL, queueName string) (*RabbitMQClient, error) {
 		return nil, err
 	}
 
-	return &RabbitMQClient{
-		conn:    conn,
-		channel: channel,
-		queue:   queue,
-		closed:  false,
-	}, nil
+	client := &RabbitMQClient{
+		conn:      conn,
+		channel:   channel,
+		queue:     queue,
+		closed:    false,
+		lastUsed:  time.Now(),
+		idleTimer: time.NewTimer(0),
+	}
+
+	go client.monitorIdleState()
+
+	return client, nil
+}
+
+func (r *RabbitMQClient) monitorIdleState() {
+	for {
+		select {
+		case <-r.idleTimer.C:
+			if time.Since(r.lastUsed) > 5*time.Minute && !r.IsClosed() {
+				r.Close()
+			}
+		}
+	}
+}
+
+func (r *RabbitMQClient) UpdateLastUsed() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.lastUsed = time.Now()
+
+	if !r.idleTimer.Stop() {
+		<-r.idleTimer.C
+	}
+	r.idleTimer.Reset(5 * time.Minute)
 }
 
 func (r *RabbitMQClient) PublishDeleteImageMessage(publicId string) error {
@@ -74,6 +104,7 @@ func (r *RabbitMQClient) PublishDeleteImageMessage(publicId string) error {
 		log.Printf("Failed to publish delete image message: %v", err)
 		return err
 	}
+	r.UpdateLastUsed()
 	log.Printf("Published delete image message with public ID: %s", publicId)
 	return nil
 }
@@ -99,13 +130,13 @@ func (r *RabbitMQClient) StartConsumer() (<-chan amqp.Delivery, error) {
 		log.Printf("Failed to start consumer: %v", err)
 		return nil, err
 	}
+	r.UpdateLastUsed()
 	return msgs, nil
 }
 
 func (r *RabbitMQClient) IsClosed() bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-
 	return r.closed
 }
 
