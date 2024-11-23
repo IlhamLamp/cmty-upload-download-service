@@ -29,6 +29,7 @@ func main() {
 
 	router := gin.New()
 	router.Use(middleware.CORSMiddleware())
+	router.Use(gin.Logger())
 
 	uploadDeps := routes.UploadServiceDeps{
 		CloudinaryClient: cldClient,

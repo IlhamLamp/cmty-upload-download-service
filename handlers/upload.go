@@ -35,25 +35,33 @@ func extractPublicID(oldImageURL string) (string, error) {
 
 func UploadFileHandler(cldClient *utils.CloudinaryClient, mqClient *utils.RabbitMQClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		log.Println("Start handling file upload request")
 		file, err := c.FormFile("file")
 		if err != nil {
+			log.Printf("Error fetching file from request: %v", err)
 			respondWithError(c, http.StatusBadRequest, "File is required!")
 			return
 		}
+		log.Printf("File received: %s", file.Filename)
 
 		openedFile, err := file.Open()
 		if err != nil {
+			log.Printf("Error opening file: %v", err)
 			respondWithError(c, http.StatusInternalServerError, "Cannot open file!")
 			return
 		}
 		defer openedFile.Close()
 
 		fileName := file.Filename
+
+		log.Println("Uploading file to Cloudinary...")
 		url, err := cldClient.UploadFile(openedFile, fileName)
 		if err != nil {
+			log.Printf("Error uploading to Cloudinary: %v", err)
 			respondWithError(c, http.StatusInternalServerError, "Failed to upload into cloudinary")
 			return
 		}
+		log.Printf("File uploaded successfully to: %s", url)
 
 		oldImageURL := c.PostForm("old_image_url")
 
