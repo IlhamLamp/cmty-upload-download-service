@@ -19,9 +19,19 @@ type RabbitMQClient struct {
 }
 
 func NewRabbitMQClient(amqpURL, queueName string) (*RabbitMQClient, error) {
-	conn, err := amqp.Dial(amqpURL)
+	var conn *amqp.Connection
+	var err error
+
+	for retries := 5; retries > 0; retries-- {
+		conn, err = amqp.Dial(amqpURL)
+		if err == nil {
+			break
+		}
+		log.Printf("Failed to connect to RabbitMQ, retrying in 5 seconds... (%d retries left)", retries-1)
+		time.Sleep(5 * time.Second)
+	}
 	if err != nil {
-		log.Fatalf("Failed to connect to RabbitMQ: %v", err)
+		log.Fatalf("Failed to connect to RabbitMQ after retries: %v", err)
 		return nil, err
 	}
 
