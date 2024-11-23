@@ -118,7 +118,8 @@ func (r *RabbitMQClient) Reconnect() error {
 		return nil
 	}
 
-	conn, err := amqp.Dial(conf.GetRabbitMQUrl())
+	url := conf.GetRabbitMQUrl()
+	conn, err := amqp.Dial(url)
 	if err != nil {
 		log.Printf("Failed to reconnect to RabbitMQ: %v", err)
 		return err
