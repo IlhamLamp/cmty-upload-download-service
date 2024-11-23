@@ -8,9 +8,16 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func RegisterUploadRoutes(router *gin.RouterGroup, cldClient *utils.CloudinaryClient, mqClient *utils.RabbitMQClient ,jwtSecret string) {
+type UploadServiceDeps struct {
+	CloudinaryClient *utils.CloudinaryClient
+	RabbitMqClient   *utils.RabbitMQClient
+	JwtSecret        string
+	AppName          string
+}
+
+func RegisterUploadRoutes(router *gin.RouterGroup, deps UploadServiceDeps) {
 	router.GET("/", func(c *gin.Context) {
-		c.String(200, "Upload-download service")
+		c.String(200, deps.AppName)
 	})
-	router.POST("/upload", middleware.AuthMiddleware(jwtSecret), handlers.UploadFileHandler(cldClient, mqClient))
+	router.POST("/upload", middleware.AuthMiddleware(deps.JwtSecret), handlers.UploadFileHandler(deps.CloudinaryClient, deps.RabbitMqClient))
 }

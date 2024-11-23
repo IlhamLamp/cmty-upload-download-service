@@ -52,8 +52,9 @@ func (r *RabbitMQClient) PublishDeleteImageMessage(publicId string) error {
 		false,
 		false,
 		amqp.Publishing{
-			ContentType: "text/plain",
-			Body:        []byte(publicId),
+			ContentType:  "text/plain",
+			DeliveryMode: amqp.Persistent,
+			Body:         []byte(publicId),
 		},
 	)
 	if err != nil {
@@ -78,6 +79,10 @@ func (r *RabbitMQClient) StartConsumer() (<-chan amqp.Delivery, error) {
 
 func (r *RabbitMQClient) GetQueueName() string {
 	return r.queue.Name
+}
+
+func (r *RabbitMQClient) GetChannel() *amqp.Channel {
+	return r.channel
 }
 
 func (r *RabbitMQClient) Close() {

@@ -1,25 +1,25 @@
 package main
 
 import (
+	"github.com/gin-gonic/gin"
 	"go-upload-download-service/config"
 	"go-upload-download-service/middleware"
 	"go-upload-download-service/routes"
 	"go-upload-download-service/utils"
 	"go-upload-download-service/workers"
 	"log"
-
-	"github.com/gin-gonic/gin"
 )
 
 func main() {
 	conf := config.LoadConfig()
+	rabbitMqUrl := conf.GetRabbitMQUrl()
 
 	cldClient, err := utils.NewCloudinaryClient(conf.CloudinaryCloudName, conf.CloudinaryApiKey, conf.CloudinaryApiSecret)
 	if err != nil {
 		log.Fatalf("Failed to create Cloudinary client: %v", err)
 	}
 
-	mqClient, err := utils.NewRabbitMQClient(conf.RabbitMQUrl, "delete_image_cloudinary")
+	mqClient, err := utils.NewRabbitMQClient(rabbitMqUrl, "delete_image_cloudinary")
 	if err != nil {
 		log.Fatalf("Failed to create RabbitMQ client: %v", err)
 	}
@@ -30,8 +30,15 @@ func main() {
 	router := gin.New()
 	router.Use(middleware.CORSMiddleware())
 
-	api := router.Group("/api/v1")
-	routes.RegisterUploadRoutes(api, cldClient, mqClient, conf.JwtAccessSecret)
+	uploadDeps := routes.UploadServiceDeps{
+		CloudinaryClient: cldClient,
+		RabbitMqClient:   mqClient,
+		JwtSecret:        conf.JwtAccessSecret,
+		AppName:          conf.AppName,
+	}
 
-	router.Run(":3100")
+	api := router.Group("/api/v1")
+	routes.RegisterUploadRoutes(api, uploadDeps)
+
+	router.Run(":" + conf.AppPort)
 }
