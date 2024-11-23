@@ -13,6 +13,12 @@ services:
       - rabbitmq_data:/var/lib/rabbitmq
     networks:
       - my_network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   upload_download:
     image: ${DOCKER_USERNAME}/upload-download-service:latest
