@@ -2,12 +2,11 @@ package handlers
 
 import (
 	"fmt"
+	"github.com/gin-gonic/gin"
 	"go-upload-download-service/utils"
 	"log"
 	"net/http"
 	"regexp"
-
-	"github.com/gin-gonic/gin"
 )
 
 type UploadResponse struct {

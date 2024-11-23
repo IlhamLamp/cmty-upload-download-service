@@ -37,7 +37,7 @@ func main() {
 		AppName:          conf.AppName,
 	}
 
-	api := router.Group("/api/v1")
+	api := router.Group("/api/v1/media")
 	routes.RegisterUploadRoutes(api, uploadDeps)
 
 	router.Run(":" + conf.AppPort)
