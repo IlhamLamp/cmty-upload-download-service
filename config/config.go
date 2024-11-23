@@ -1,7 +1,7 @@
 package config
 
 import (
-	"github.com/joho/godotenv"
+	_ "github.com/joho/godotenv"
 	"log"
 	"os"
 )
@@ -21,10 +21,11 @@ type Config struct {
 }
 
 func LoadConfig() Config {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatalf("Error loading env file")
-	}
+	// DEPLOYMENT VPS
+	// err := godotenv.Load()
+	// if err != nil {
+	// 	log.Fatalf("Error loading env file")
+	// }
 
 	requiredEnv := []string{
 		"APP_PORT",
