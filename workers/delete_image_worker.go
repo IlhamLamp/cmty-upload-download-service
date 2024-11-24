@@ -11,23 +11,25 @@ import (
 
 func StartDeleteImageWorker(rmqClient *utils.RabbitMQClient, cldClient *utils.CloudinaryClient) {
 
-	if err := rmqClient.Reconnect(); err != nil {
-		log.Fatalf("Failed to reconnect to RabbitMQ: %v", err)
-	}
-
-	if err := rmqClient.GetChannel().Qos(1, 0, false); err != nil {
-		log.Fatalf("Failed to set QoS: %v", err)
-	}
-
-	msgs, err := rmqClient.StartConsumer()
-	if err != nil {
-		log.Fatalf("Failed to start consumer: %v", err)
-	}
-
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
+		if err := rmqClient.Reconnect(); err != nil {
+			log.Fatalf("Failed to reconnect to RabbitMQ: %v", err)
+		}
+
+		if err := rmqClient.GetChannel().Qos(1, 0, false); err != nil {
+			log.Fatalf("Failed to set QoS: %v", err)
+		}
+
+		log.Println("Started consuming messages from RabbitMQ.")
+
+		msgs, err := rmqClient.StartConsumer()
+		if err != nil {
+			log.Fatalf("Failed to start consumer: %v", err)
+		}
+
 		for msg := range msgs {
 
 			rmqClient.UpdateLastUsed()
