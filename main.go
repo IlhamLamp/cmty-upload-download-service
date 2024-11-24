@@ -28,7 +28,7 @@ func main() {
 	go workers.StartDeleteImageWorker(mqClient, cldClient)
 
 	router := gin.New()
-	router.Use(middleware.CORSMiddleware())
+	router.Use(middleware.CORSMiddleware(conf.AppClient))
 	router.Use(gin.Logger())
 
 	uploadDeps := routes.UploadServiceDeps{

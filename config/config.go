@@ -7,6 +7,7 @@ import (
 )
 
 type Config struct {
+	AppClient           string
 	AppPort             string
 	AppName             string
 	CloudinaryApiKey    string
@@ -28,6 +29,7 @@ func LoadConfig() Config {
 	// }
 
 	requiredEnv := []string{
+		"APP_CLIENT",
 		"APP_PORT",
 		"APP_NAME",
 		"CLOUDINARY_API_KEY",
@@ -47,6 +49,7 @@ func LoadConfig() Config {
 	}
 
 	config := Config{
+		AppClient:           os.Getenv("APP_CLIENT"),
 		AppPort:             os.Getenv("APP_PORT"),
 		AppName:             os.Getenv("APP_NAME"),
 		CloudinaryApiKey:    os.Getenv("CLOUDINARY_API_KEY"),

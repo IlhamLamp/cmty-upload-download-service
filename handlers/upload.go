@@ -68,7 +68,7 @@ func UploadFileHandler(cldClient *utils.CloudinaryClient, mqClient *utils.Rabbit
 		if oldImageURL != "" {
 			log.Printf("Old image URL: %s", oldImageURL)
 			if publicId, err := extractPublicID(oldImageURL); err == nil {
-				log.Printf("Old image URL: %s", oldImageURL)
+				log.Printf("Public ID: %s", publicId)
 				if err := mqClient.PublishDeleteImageMessage(publicId); err != nil {
 					log.Printf("Error published delete image: %s", err)
 					respondWithError(c, http.StatusInternalServerError, "Failed to queue old image for deletion")

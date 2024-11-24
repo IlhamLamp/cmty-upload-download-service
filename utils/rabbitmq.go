@@ -99,6 +99,7 @@ func (r *RabbitMQClient) PublishDeleteImageMessage(publicId string) error {
 		}
 	}
 
+	log.Printf("Attempting to publish delete image message with Public ID: %s", publicId)
 	err := r.channel.Publish(
 		"",
 		r.queue.Name,

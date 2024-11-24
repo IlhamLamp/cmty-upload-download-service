@@ -26,6 +26,7 @@ services:
     ports:
       - "3100:3100"
     environment:
+      APP_CLIENT: ${APP_CLIENT}
       APP_PORT: ${APP_PORT}
       APP_NAME: ${APP_NAME}
       CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}

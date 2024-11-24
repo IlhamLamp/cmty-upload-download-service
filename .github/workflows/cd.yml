@@ -36,6 +36,7 @@ jobs:
       - name: Create .env file for Docker Compose
         run: |
           echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}" >> .env
+          echo "APP_CLIENT=${{ secrets.APP_CLIENT }}" >> .env
           echo "APP_PORT=${{ secrets.APP_PORT }}" >> .env
           echo "APP_NAME=${{ secrets.APP_NAME }}" >> .env
           echo "CLOUDINARY_API_KEY=${{ secrets.CLOUDINARY_API_KEY }}" >> .env
