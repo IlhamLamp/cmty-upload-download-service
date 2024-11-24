@@ -10,12 +10,14 @@ import (
 
 func StartDeleteImageWorker(rmqClient *utils.RabbitMQClient, cldClient *utils.CloudinaryClient) {
 
-	err := rmqClient.Reconnect()
-	if err != nil {
+	if err := rmqClient.Reconnect(); err != nil {
 		log.Fatalf("Failed to reconnect to RabbitMQ: %v", err)
 	}
 
-	err = rmqClient.GetChannel().Qos(1, 0, false)
+	if err := rmqClient.GetChannel().Qos(1, 0, false); err != nil {
+		log.Fatalf("Failed to set QoS: %v", err)
+	}
+
 	msgs, err := rmqClient.StartConsumer()
 	if err != nil {
 		log.Fatalf("Failed to start consumer: %v", err)
@@ -27,36 +29,28 @@ func StartDeleteImageWorker(rmqClient *utils.RabbitMQClient, cldClient *utils.Cl
 	go func() {
 		for msg := range msgs {
 
-			if rmqClient.IsClosed() {
-				log.Println("Channel is closed, attempting to reconnect...")
-				err := rmqClient.Reconnect()
-				if err != nil {
-					log.Printf("Failed to reconnect to RabbitMQ: %v", err)
-					break
-				}
-				continue
-			}
-
 			rmqClient.UpdateLastUsed()
 
 			publicId := string(msg.Body)
 			log.Printf("Received message to delete image with public ID: %s", publicId)
 
-			err := cldClient.DeleteFile(publicId)
-			if err != nil {
+			if err := cldClient.DeleteFile(publicId); err != nil {
 				log.Printf("Error deleting image with public ID %s: %v", publicId, err)
-				msg.Nack(false, true)
+				_ = msg.Nack(false, true)
 				continue
 			}
 
-			err = msg.Ack(false)
-			if err != nil {
+			if err := msg.Ack(false); err != nil {
 				log.Printf("Failed to ack message: %v", err)
+			} else {
+				log.Printf("Successfully deleted image with public ID: %s", publicId)
 			}
 		}
+
 		log.Println("RabbitMQ consumer channel closed, no more messages will be received.")
 	}()
 	log.Printf("Started delete image worker for queue: %s", rmqClient.GetQueueName())
 	<-quit
 	log.Println("Shutting down worker gracefully...")
+	rmqClient.Close()
 }

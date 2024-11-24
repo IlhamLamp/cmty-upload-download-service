@@ -18,26 +18,18 @@ type RabbitMQClient struct {
 	idleTimer *time.Timer
 }
 
-func NewRabbitMQClient(amqpURL, queueName string) (*RabbitMQClient, error) {
-	var conn *amqp.Connection
-	var err error
+const idleTimeout = 5 * time.Minute
 
-	for retries := 5; retries > 0; retries-- {
-		conn, err = amqp.Dial(amqpURL)
-		if err == nil {
-			break
-		}
-		log.Printf("Failed to connect to RabbitMQ, retrying in 5 seconds... (%d retries left)", retries-1)
-		time.Sleep(5 * time.Second)
-	}
+func NewRabbitMQClient(amqpURL, queueName string) (*RabbitMQClient, error) {
+	conn, err := connectWithRetries(amqpURL, 5)
 	if err != nil {
-		log.Fatalf("Failed to connect to RabbitMQ after retries: %v", err)
 		return nil, err
 	}
 
 	channel, err := conn.Channel()
 	if err != nil {
-		log.Fatalf("Failed to open a channel: %v", err)
+		log.Printf("Failed to open channel: %v", err)
+		conn.Close()
 		return nil, err
 	}
 
@@ -50,7 +42,9 @@ func NewRabbitMQClient(amqpURL, queueName string) (*RabbitMQClient, error) {
 		nil,
 	)
 	if err != nil {
-		log.Fatalf("Failed to declare a queue: %v", err)
+		log.Printf("Failed to declare queue: %v", err)
+		channel.Close()
+		conn.Close()
 		return nil, err
 	}
 
@@ -60,12 +54,29 @@ func NewRabbitMQClient(amqpURL, queueName string) (*RabbitMQClient, error) {
 		queue:     queue,
 		closed:    false,
 		lastUsed:  time.Now(),
-		idleTimer: time.NewTimer(0),
+		idleTimer: time.NewTimer(idleTimeout),
 	}
 
 	go client.monitorIdleState()
-
 	return client, nil
+}
+
+func connectWithRetries(amqpURL string, retries int) (*amqp.Connection, error) {
+	var conn *amqp.Connection
+	var err error
+
+	for retries > 0 {
+		conn, err = amqp.Dial(amqpURL)
+		if err == nil {
+			return conn, nil
+		}
+		log.Printf("Failed to connect to RabbitMQ, retrying... (%d retries left)", retries-1)
+		time.Sleep(5 * time.Second)
+		retries--
+	}
+
+	log.Printf("Failed to connect to RabbitMQ after retries: %v", err)
+	return nil, err
 }
 
 func (r *RabbitMQClient) monitorIdleState() {
@@ -83,24 +94,19 @@ func (r *RabbitMQClient) UpdateLastUsed() {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.lastUsed = time.Now()
-
 	if !r.idleTimer.Stop() {
 		<-r.idleTimer.C
 	}
-	r.idleTimer.Reset(5 * time.Minute)
+	r.idleTimer.Reset(idleTimeout)
 }
 
 func (r *RabbitMQClient) PublishDeleteImageMessage(publicId string) error {
-	log.Printf("Checking rabbitmq connections .... %v", r.closed)
 	if r.IsClosed() {
-		err := r.Reconnect()
-		if err != nil {
-			log.Printf("Failed to reconnect to RabbitMQ: %v", err)
+		if err := r.Reconnect(); err != nil {
 			return err
 		}
 	}
 
-	log.Printf("Attempting to publish delete image message with Public ID: %s", publicId)
 	err := r.channel.Publish(
 		"",
 		r.queue.Name,
@@ -123,12 +129,11 @@ func (r *RabbitMQClient) PublishDeleteImageMessage(publicId string) error {
 
 func (r *RabbitMQClient) StartConsumer() (<-chan amqp.Delivery, error) {
 	if r.IsClosed() {
-		err := r.Reconnect()
-		if err != nil {
-			log.Printf("Failed to reconnect to RabbitMQ: %v", err)
+		if err := r.Reconnect(); err != nil {
 			return nil, err
 		}
 	}
+
 	msgs, err := r.channel.Consume(
 		r.queue.Name,
 		"",
@@ -142,6 +147,7 @@ func (r *RabbitMQClient) StartConsumer() (<-chan amqp.Delivery, error) {
 		log.Printf("Failed to start consumer: %v", err)
 		return nil, err
 	}
+
 	r.UpdateLastUsed()
 	return msgs, nil
 }
@@ -149,11 +155,10 @@ func (r *RabbitMQClient) StartConsumer() (<-chan amqp.Delivery, error) {
 func (r *RabbitMQClient) IsClosed() bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return r.closed
+	return r.closed || r.conn.IsClosed()
 }
 
 func (r *RabbitMQClient) Reconnect() error {
-	conf := config.LoadConfig()
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -161,10 +166,9 @@ func (r *RabbitMQClient) Reconnect() error {
 		return nil
 	}
 
-	url := conf.GetRabbitMQUrl()
-	conn, err := amqp.Dial(url)
+	conf := config.LoadConfig()
+	conn, err := connectWithRetries(conf.GetRabbitMQUrl(), 5)
 	if err != nil {
-		log.Printf("Failed to reconnect to RabbitMQ: %v", err)
 		return err
 	}
 
@@ -196,9 +200,10 @@ func (r *RabbitMQClient) Close() {
 	defer r.mu.Unlock()
 
 	if !r.closed {
+		log.Println("Closing RabbitMQ connection...")
 		r.channel.Close()
 		r.conn.Close()
 		r.closed = true
-		log.Println("RabbitMQ connection closed")
+		log.Println("RabbitMQ connection closed.")
 	}
 }
