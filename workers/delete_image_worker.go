@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 )
 
 func StartDeleteImageWorker(rmqClient *utils.RabbitMQClient, cldClient *utils.CloudinaryClient) {
@@ -34,16 +35,29 @@ func StartDeleteImageWorker(rmqClient *utils.RabbitMQClient, cldClient *utils.Cl
 			publicId := string(msg.Body)
 			log.Printf("Received message to delete image with public ID: %s", publicId)
 
-			if err := cldClient.DeleteFile(publicId); err != nil {
-				log.Printf("Error deleting image with public ID %s: %v", publicId, err)
-				_ = msg.Nack(false, true)
-				continue
+			maxRetries := 3
+			retries := 0
+			var deleteErr error
+
+			for retries < maxRetries {
+				deleteErr = cldClient.DeleteFile(publicId)
+				if deleteErr == nil {
+					if err := msg.Ack(false); err != nil {
+						log.Printf("Failed to ack message: %v", err)
+					} else {
+						log.Printf("Successfully deleted image with public ID: %s", publicId)
+					}
+					break
+				}
+
+				retries++
+				log.Printf("Error deleting image with public ID %s (attempt %d/%d): %v", publicId, retries, maxRetries, deleteErr)
+				time.Sleep(2 * time.Second)
 			}
 
-			if err := msg.Ack(false); err != nil {
-				log.Printf("Failed to ack message: %v", err)
-			} else {
-				log.Printf("Successfully deleted image with public ID: %s", publicId)
+			if deleteErr != nil {
+				log.Printf("Error deleting image with public ID %s after %d attempts: %v", publicId, maxRetries, deleteErr)
+				_ = msg.Nack(false, true)
 			}
 		}
 

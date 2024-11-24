@@ -85,7 +85,8 @@ func (r *RabbitMQClient) monitorIdleState() {
 	for {
 		select {
 		case <-r.idleTimer.C:
-			if time.Since(r.lastUsed) > 5*time.Minute && !r.IsClosed() {
+			if time.Since(r.lastUsed) > idleTimeout && !r.IsClosed() {
+				log.Println("Idle timeout reached, closing RabbitMQ connection.")
 				r.Close()
 			}
 		}
@@ -104,6 +105,7 @@ func (r *RabbitMQClient) UpdateLastUsed() {
 
 func (r *RabbitMQClient) PublishDeleteImageMessage(publicId string) error {
 	if r.IsClosed() {
+		log.Println("Channel is closed, attempting to reconnect...")
 		if err := r.Reconnect(); err != nil {
 			return err
 		}
