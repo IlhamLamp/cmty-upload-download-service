@@ -91,6 +91,7 @@ func (r *RabbitMQClient) UpdateLastUsed() {
 }
 
 func (r *RabbitMQClient) PublishDeleteImageMessage(publicId string) error {
+	log.Printf("Checking rabbitmq connections .... %v", r.closed)
 	if r.IsClosed() {
 		err := r.Reconnect()
 		if err != nil {
