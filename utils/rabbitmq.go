@@ -21,7 +21,7 @@ type RabbitMQClient struct {
 const idleTimeout = 5 * time.Minute
 
 func NewRabbitMQClient(amqpURL, queueName string) (*RabbitMQClient, error) {
-	conn, err := connectWithRetries(amqpURL, 5)
+	conn, err := connectWithRetries(5)
 	if err != nil {
 		return nil, err
 	}
@@ -61,12 +61,14 @@ func NewRabbitMQClient(amqpURL, queueName string) (*RabbitMQClient, error) {
 	return client, nil
 }
 
-func connectWithRetries(amqpURL string, retries int) (*amqp.Connection, error) {
+func connectWithRetries(retries int) (*amqp.Connection, error) {
 	var conn *amqp.Connection
 	var err error
 
+	conf := config.LoadConfig()
+	url := conf.GetRabbitMQUrl()
 	for retries > 0 {
-		conn, err = amqp.Dial(amqpURL)
+		conn, err = amqp.Dial(url)
 		if err == nil {
 			return conn, nil
 		}
@@ -166,8 +168,7 @@ func (r *RabbitMQClient) Reconnect() error {
 		return nil
 	}
 
-	conf := config.LoadConfig()
-	conn, err := connectWithRetries(conf.GetRabbitMQUrl(), 5)
+	conn, err := connectWithRetries(5)
 	if err != nil {
 		return err
 	}
