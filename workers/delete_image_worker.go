@@ -1,6 +1,7 @@
 package workers
 
 import (
+	"fmt"
 	"go-upload-download-service/utils"
 	"log"
 	"os"
@@ -16,7 +17,6 @@ func StartDeleteImageWorker(rmqClient *utils.RabbitMQClient, cldClient *utils.Cl
 
 	go func() {
 		for {
-			// Reconnect jika koneksi tertutup
 			if rmqClient.IsClosed() {
 				log.Println("RabbitMQ connection is closed, attempting to reconnect...")
 				if err := rmqClient.Reconnect(); err != nil {
@@ -26,7 +26,6 @@ func StartDeleteImageWorker(rmqClient *utils.RabbitMQClient, cldClient *utils.Cl
 				}
 			}
 
-			// Set QoS untuk memastikan pesan dikonsumsi satu per satu
 			if err := rmqClient.GetChannel().Qos(1, 0, false); err != nil {
 				log.Printf("Failed to set QoS: %v", err)
 				rmqClient.Close()
@@ -36,7 +35,6 @@ func StartDeleteImageWorker(rmqClient *utils.RabbitMQClient, cldClient *utils.Cl
 
 			log.Println("Started consuming messages from RabbitMQ.")
 
-			// Mulai konsumsi pesan
 			msgs, err := rmqClient.StartConsumer()
 			if err != nil {
 				log.Printf("Failed to start consumer: %v", err)
@@ -45,7 +43,6 @@ func StartDeleteImageWorker(rmqClient *utils.RabbitMQClient, cldClient *utils.Cl
 				continue
 			}
 
-			// Proses pesan dalam loop
 			workerDone := make(chan struct{})
 			go func() {
 				defer close(workerDone)
@@ -54,43 +51,25 @@ func StartDeleteImageWorker(rmqClient *utils.RabbitMQClient, cldClient *utils.Cl
 					publicId := string(msg.Body)
 					log.Printf("Received message to delete image with public ID: %s", publicId)
 
-					maxRetries := 3
-					retries := 0
-					var deleteErr error
-
-					// Coba hapus file hingga batas maksimal percobaan
-					for retries < maxRetries {
-						deleteErr = cldClient.DeleteFile(publicId)
-						if deleteErr == nil {
-							if err := msg.Ack(false); err != nil {
-								log.Printf("Failed to ack message: %v", err)
-							} else {
-								log.Printf("Successfully deleted image with public ID: %s", publicId)
-							}
-							break
+					if err := deleteImageWithRetries(cldClient, publicId); err == nil {
+						if err := msg.Ack(false); err != nil {
+							log.Printf("Failed to ack message: %v", err)
+						} else {
+							log.Printf("Successfully deleted image with public ID: %s", publicId)
 						}
-
-						retries++
-						log.Printf("Error deleting image with public ID %s (attempt %d/%d): %v", publicId, retries, maxRetries, deleteErr)
-						time.Sleep(2 * time.Second)
-					}
-
-					// Jika gagal setelah beberapa percobaan, kirim kembali ke antrean
-					if deleteErr != nil {
-						log.Printf("Failed to delete image with public ID %s after %d attempts: %v", publicId, maxRetries, deleteErr)
+					} else {
+						log.Printf("Failed to delete image with public ID %s: %v", publicId, err)
 						_ = msg.Nack(false, true)
 					}
 				}
 			}()
 
-			// Tunggu hingga worker selesai atau ada sinyal stop
 			select {
 			case <-stopChan:
 				log.Println("Stop signal received, shutting down worker...")
 				rmqClient.Close()
 				return
 			case <-workerDone:
-				// Jika worker selesai karena channel ditutup, restart loop
 				log.Println("Consumer stopped unexpectedly, restarting...")
 			}
 		}
@@ -101,4 +80,17 @@ func StartDeleteImageWorker(rmqClient *utils.RabbitMQClient, cldClient *utils.Cl
 	log.Println("Shutting down worker gracefully...")
 	close(stopChan)
 	rmqClient.Close()
+}
+
+func deleteImageWithRetries(cldClient *utils.CloudinaryClient, publicId string) error {
+	maxRetries := 3
+	for retries := 0; retries < maxRetries; retries++ {
+		deleteErr := cldClient.DeleteFile(publicId)
+		if deleteErr == nil {
+			return nil
+		}
+		log.Printf("Error deleting image with public ID %s (attempt %d/%d): %v", publicId, retries+1, maxRetries, deleteErr)
+		time.Sleep(2 * time.Second)
+	}
+	return fmt.Errorf("failed to delete image after %d attempts", maxRetries)
 }
