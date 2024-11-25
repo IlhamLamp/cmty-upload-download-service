@@ -107,7 +107,6 @@ func (r *RabbitMQClient) PublishDeleteImageMessage(publicId string) error {
 	if r.IsClosed() {
 		log.Println("Channel is closed, attempting to reconnect...")
 		if err := r.Reconnect(); err != nil {
-			log.Printf("Reconnect failed: %v", err)
 			return err
 		}
 	}
@@ -125,7 +124,6 @@ func (r *RabbitMQClient) PublishDeleteImageMessage(publicId string) error {
 	)
 	if err != nil {
 		log.Printf("Failed to publish delete image message: %v", err)
-		r.Close()
 		return err
 	}
 	r.UpdateLastUsed()
@@ -169,14 +167,11 @@ func (r *RabbitMQClient) Reconnect() error {
 	defer r.mu.Unlock()
 
 	if !r.closed {
-		log.Println("Reconnect called but connection is not marked as closed.")
 		return nil
 	}
 
-	log.Println("Attempting to reconnect to RabbitMQ...")
 	conn, err := connectWithRetries(5)
 	if err != nil {
-		log.Printf("Failed to reconnect to RabbitMQ: %v", err)
 		return err
 	}
 
@@ -187,25 +182,8 @@ func (r *RabbitMQClient) Reconnect() error {
 		return err
 	}
 
-	queue, err := channel.QueueDeclare(
-		r.queue.Name,
-		true,
-		false,
-		false,
-		false,
-		nil,
-	)
-
-	if err != nil {
-		log.Printf("Failed to redeclare queue after reconnect: %v", err)
-		channel.Close()
-		conn.Close()
-		return err
-	}
-
 	r.conn = conn
 	r.channel = channel
-	r.queue = queue
 	r.closed = false
 
 	log.Println("Successfully reconnected to RabbitMQ")
