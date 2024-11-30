@@ -1,11 +1,13 @@
 package utils
 
 import (
-	"github.com/streadway/amqp"
+	"fmt"
 	"go-upload-download-service/config"
 	"log"
 	"sync"
 	"time"
+
+	"github.com/streadway/amqp"
 )
 
 type RabbitMQClient struct {
@@ -113,7 +115,7 @@ func (r *RabbitMQClient) PublishDeleteImageMessage(publicId string) error {
 	if r.IsClosed() {
 		log.Println("Channel is closed, attempting to reconnect...")
 		if err := r.Reconnect(); err != nil {
-			return err
+			return fmt.Errorf("reconnection failed: %w", err)
 		}
 	}
 
