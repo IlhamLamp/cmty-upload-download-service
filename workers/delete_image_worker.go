@@ -71,7 +71,6 @@ func prepareRabbitMQ(rmqClient *utils.RabbitMQClient) bool {
 		log.Println("RabbitMQ connection is closed, attempting to reconnect...")
 		if err := rmqClient.Reconnect(); err != nil {
 			log.Printf("Failed to reconnect to RabbitMQ: %v", err)
-			time.Sleep(5 * time.Second)
 			return false
 		} else {
 			log.Println("Successfully reconnected to RabbitMQ.")
@@ -82,7 +81,6 @@ func prepareRabbitMQ(rmqClient *utils.RabbitMQClient) bool {
 	if channel == nil {
 		log.Println("RabbitMQ channel is closed, attempting to recreate...")
 		rmqClient.Close()
-		time.Sleep(5 * time.Second)
 		return false
 	}
 
@@ -92,7 +90,6 @@ func prepareRabbitMQ(rmqClient *utils.RabbitMQClient) bool {
 			log.Printf("Failed to reconnect to RabbitMQ: %v", err)
 			return false
 		}
-		time.Sleep(5 * time.Second)
 		return prepareRabbitMQ(rmqClient)
 	}
 

@@ -171,6 +171,7 @@ func (r *RabbitMQClient) IsClosed() bool {
 }
 
 func (r *RabbitMQClient) Reconnect() error {
+	r.Close()
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
