@@ -175,12 +175,17 @@ func (r *RabbitMQClient) Reconnect() error {
 	defer r.mu.Unlock()
 
 	if !r.closed {
+		log.Println("Connection already open, skipping reconnect.")
 		return nil
+	}
+
+	if r.conn != nil {
+		r.conn.Close()
 	}
 
 	conn, err := connectWithRetries(5)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to reconnect to RabbitMQ: %w", err)
 	}
 
 	channel, err := conn.Channel()
