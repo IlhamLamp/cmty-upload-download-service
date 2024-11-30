@@ -33,6 +33,27 @@ func extractPublicID(oldImageURL string) (string, error) {
 	return "", fmt.Errorf("failed to extract public ID from URL: %s", oldImageURL)
 }
 
+func handleOldImageDeletion(oldImageURL string, mqClient *utils.RabbitMQClient) error {
+	if oldImageURL == "" {
+		log.Println("No old image URL provided, skipping deletion")
+		return nil
+	}
+
+	log.Printf("Processing old image URL: %s", oldImageURL)
+	publicId, err := extractPublicID(oldImageURL)
+	if err != nil {
+		return fmt.Errorf("failed to extract public ID from URL: %w", err)
+	}
+
+	log.Printf("Public ID extracted: %s", publicId)
+	if err := mqClient.PublishDeleteImageMessage(publicId); err != nil {
+		return fmt.Errorf("failed to queue old image deletion for public ID %s: %w", publicId, err)
+	}
+
+	log.Printf("Old image queued for deletion: %s", publicId)
+	return nil
+}
+
 func UploadFileHandler(cldClient *utils.CloudinaryClient, mqClient *utils.RabbitMQClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		log.Println("Start handling file upload request")
@@ -62,20 +83,10 @@ func UploadFileHandler(cldClient *utils.CloudinaryClient, mqClient *utils.Rabbit
 		log.Printf("File uploaded successfully to: %s", url)
 
 		oldImageURL := c.PostForm("old_image_url")
-		if oldImageURL != "" {
-			log.Printf("Processing old image URL: %s", oldImageURL)
-			publicId, err := extractPublicID(oldImageURL)
-			if err != nil {
-				log.Printf("Failed to extract public ID from URL: %v", err)
-			} else {
-				log.Printf("Public ID extracted: %s", publicId)
-				if err := mqClient.PublishDeleteImageMessage(publicId); err != nil {
-					log.Printf("Failed to queue old image deletion for public ID %s: %v", publicId, err)
-					respondWithError(c, http.StatusInternalServerError, "Failed to queue old image for deletion")
-					return
-				}
-				log.Printf("Old image queued for deletion: %s", publicId)
-			}
+		if err := handleOldImageDeletion(oldImageURL, mqClient); err != nil {
+			log.Printf("Error handling old image deletion: %v", err)
+			respondWithError(c, http.StatusInternalServerError, err.Error())
+			return
 		}
 
 		c.JSON(http.StatusOK, UploadResponse{

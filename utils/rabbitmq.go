@@ -109,6 +109,7 @@ func (r *RabbitMQClient) UpdateLastUsed() {
 }
 
 func (r *RabbitMQClient) PublishDeleteImageMessage(publicId string) error {
+	log.Printf("Attempting to publish message for public ID: %s", publicId)
 	if r.IsClosed() {
 		log.Println("Channel is closed, attempting to reconnect...")
 		if err := r.Reconnect(); err != nil {
