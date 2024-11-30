@@ -77,12 +77,23 @@ func prepareRabbitMQ(rmqClient *utils.RabbitMQClient) bool {
 		}
 	}
 
-	if err := rmqClient.GetChannel().Qos(1, 0, false); err != nil {
-		log.Printf("Failed to set QoS: %v", err)
+	channel := rmqClient.GetChannel()
+	if channel == nil {
+		log.Println("RabbitMQ channel is closed, attempting to recreate...")
 		rmqClient.Close()
 		return false
 	}
 
+	if err := channel.Qos(1, 0, false); err != nil {
+		log.Printf("Failed to set QoS, reconnecting RabbitMQ: %v", err)
+		if err := rmqClient.Reconnect(); err != nil {
+			log.Printf("Failed to reconnect to RabbitMQ: %v", err)
+			return false
+		}
+		return prepareRabbitMQ(rmqClient)
+	}
+
+	log.Printf("RabbitMQ channel %v is valid.", channel)
 	log.Println("Started consuming messages from RabbitMQ.")
 	return true
 }
