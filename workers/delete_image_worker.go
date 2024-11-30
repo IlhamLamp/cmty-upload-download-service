@@ -18,6 +18,13 @@ func StartDeleteImageWorker(rmqClient *utils.RabbitMQClient, cldClient *utils.Cl
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("Goroutine panicked: %v", r)
+			}
+			log.Println("Worker goroutine exited.")
+		}()
+
 		for {
 
 			if !prepareRabbitMQ(rmqClient) {
@@ -25,7 +32,6 @@ func StartDeleteImageWorker(rmqClient *utils.RabbitMQClient, cldClient *utils.Cl
 				continue
 			}
 
-			log.Println("Started consuming messages from RabbitMQ.")
 			msgs, err := rmqClient.StartConsumer()
 			if err != nil {
 				log.Printf("Failed to start consumer: %v", err)
@@ -66,6 +72,8 @@ func prepareRabbitMQ(rmqClient *utils.RabbitMQClient) bool {
 		if err := rmqClient.Reconnect(); err != nil {
 			log.Printf("Failed to reconnect to RabbitMQ: %v", err)
 			return false
+		} else {
+			log.Println("Successfully reconnected to RabbitMQ.")
 		}
 	}
 
@@ -80,10 +88,15 @@ func prepareRabbitMQ(rmqClient *utils.RabbitMQClient) bool {
 }
 
 func processMessages(msgs <-chan amqp.Delivery, rmqClient *utils.RabbitMQClient, cldClient *utils.CloudinaryClient, stopChan chan struct{}) bool {
+	log.Println("Started processing messages.")
 	workerDone := make(chan struct{})
 	go func() {
-		defer close(workerDone)
+		defer func() {
+			log.Println("Worker done processing messages.")
+			close(workerDone)
+		}()
 		for msg := range msgs {
+			log.Printf("Processing message: %s", msg.Body)
 			rmqClient.UpdateLastUsed()
 			publicId := string(msg.Body)
 			log.Printf("Received message to delete image with public ID: %s", publicId)

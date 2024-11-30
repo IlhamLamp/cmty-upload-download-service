@@ -30,6 +30,7 @@ func main() {
 	router := gin.New()
 	router.Use(middleware.CORSMiddleware(conf.AppClient))
 	router.Use(gin.Logger())
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
 	uploadDeps := routes.UploadServiceDeps{
 		CloudinaryClient: cldClient,
