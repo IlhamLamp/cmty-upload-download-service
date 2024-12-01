@@ -46,7 +46,8 @@ func handleOldImageDeletion(oldImageURL string, mqClient *utils.RabbitMQClient) 
 	}
 
 	log.Printf("Public ID extracted: %s", publicId)
-	if err := mqClient.PublishDeleteImageMessage(publicId); err != nil {
+	log.Printf("Attempting to publish message for public ID: %s", publicId)
+	if err := mqClient.PublicMessage(publicId); err != nil {
 		return fmt.Errorf("failed to queue old image deletion for public ID %s: %w", publicId, err)
 	}
 

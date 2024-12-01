@@ -67,7 +67,7 @@ func deleteImageWithRetries(cldClient *utils.CloudinaryClient, publicId string) 
 }
 
 func prepareRabbitMQ(rmqClient *utils.RabbitMQClient) bool {
-	if rmqClient.IsClosed() {
+	if rmqClient.GetConnecionClosed() {
 		log.Println("RabbitMQ connection is closed, attempting to reconnect...")
 		if err := rmqClient.Reconnect(); err != nil {
 			log.Printf("Failed to reconnect to RabbitMQ: %v", err)
