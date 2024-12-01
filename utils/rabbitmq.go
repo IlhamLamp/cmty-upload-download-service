@@ -71,7 +71,7 @@ func connectWithRetries(retries int) (*amqp.Connection, error) {
 	url := conf.GetRabbitMQUrl()
 
 	config := amqp.Config{
-		Heartbeat: 10 * time.Second,
+		Heartbeat: 1 * time.Second,
 		Locale:    "en_US",
 	}
 	for retries > 0 {
@@ -112,6 +112,7 @@ func (r *RabbitMQClient) UpdateLastUsed() {
 
 func (r *RabbitMQClient) PublishDeleteImageMessage(publicId string) error {
 	log.Printf("Attempting to publish message for public ID: %s", publicId)
+	log.Print(r.IsClosed())
 	if r.IsClosed() {
 		log.Println("Channel is closed, attempting to reconnect...")
 		if err := r.Reconnect(); err != nil {
