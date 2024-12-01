@@ -86,12 +86,24 @@ func connectWithRetries(retries int) (*amqp.Connection, error) {
 }
 
 func (r *RabbitMQClient) monitorIdleState() {
+	ticker := time.NewTicker(idleTimeout)
+	defer ticker.Stop()
+
 	for {
 		select {
-		case <-r.idleTimer.C:
+		case <-ticker.C:
+			r.mu.Lock()
 			if time.Since(r.lastUsed) > idleTimeout && !r.conn.IsClosed() {
 				log.Println("Idle timeout reached, closing RabbitMQ connection.")
 				r.Close()
+			}
+			if r.conn.IsClosed() {
+				log.Println("RabbitMQ connection closed, attempting to reconnect...")
+				if err := r.Reconnect(); err != nil {
+					log.Printf("Reconnect failed: %v", err)
+				} else {
+					log.Println("Reconnected to RabbitMQ.")
+				}
 			}
 			r.mu.Unlock()
 		}
@@ -110,7 +122,7 @@ func (r *RabbitMQClient) PublicMessage(message string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if r.conn == nil || r.conn == nil || r.conn.IsClosed() {
+	if r.conn == nil || r.conn.IsClosed() {
 		log.Println("Connection is closed, attempting to reconnect...")
 		if err := r.Reconnect(); err != nil {
 			return fmt.Errorf("reconnection failed: %w", err)
@@ -213,10 +225,11 @@ func (r *RabbitMQClient) Close() {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if !r.conn.IsClosed() {
+	if !r.conn.IsClosed() || r.conn != nil {
 		log.Println("Closing RabbitMQ connection...")
 		r.channel.Close()
 		r.conn.Close()
+		r.conn = nil
 		log.Println("RabbitMQ connection closed.")
 	}
 }
