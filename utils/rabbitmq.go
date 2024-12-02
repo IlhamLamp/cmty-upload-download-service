@@ -69,7 +69,7 @@ func connectWithRetries(retries int) (*amqp.Connection, error) {
 	url := conf.GetRabbitMQUrl()
 
 	config := amqp.Config{
-		Heartbeat: 1 * time.Second,
+		Heartbeat: 10 * time.Second,
 		Locale:    "en_US",
 	}
 	for retries > 0 {
