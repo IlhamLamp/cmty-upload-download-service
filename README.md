@@ -110,7 +110,6 @@ curl --location --request POST 'https://yourdomain.com/api/v1/auth/media/upload'
 - **Format didukung**: File harus berupa salah satu tipe berikut:
   - `image/jpeg`
   - `image/png`
-  - `image/webp`
 - **Ukuran maksimum**: File tidak boleh melebihi 5MB (atau sesuai batas server).
 
 ---
@@ -118,7 +117,6 @@ curl --location --request POST 'https://yourdomain.com/api/v1/auth/media/upload'
 ## **Notes**
 
 1. Pastikan token autentikasi (`Bearer Token`) valid sebelum mengakses endpoint ini.
-2. Konfigurasikan server untuk mendukung `multipart/form-data` dengan ukuran maksimum file sesuai kebutuhan.
-3. Folder default untuk penyimpanan adalah `uploads` jika parameter `folder` tidak diberikan.
+2. Folder default untuk penyimpanan adalah `uploads` jika parameter `folder` tidak diberikan.
 
 ---
