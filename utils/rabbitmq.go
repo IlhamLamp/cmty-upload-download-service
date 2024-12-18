@@ -19,7 +19,7 @@ type RabbitMQClient struct {
 	idleTimer *time.Timer
 }
 
-const idleTimeout = 5 * time.Minute
+const idleTimeout = 10 * time.Minute
 
 func NewRabbitMQClient(amqpURL, queueName string) (*RabbitMQClient, error) {
 	conn, err := connectWithRetries(5)
