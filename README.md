@@ -4,8 +4,6 @@
 
 ### **POST** `/api/v1/auth/media/upload`
 
-## Endpoint ini digunakan untuk mengunggah file gambar ke server. Gambar yang diunggah akan diproses dan disimpan di Cloudinary.
-
 ## **Headers**
 
 | Header          | Value               | Description                                       |
