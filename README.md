@@ -114,6 +114,6 @@ curl --location --request POST 'https://yourdomain.com/api/v1/auth/media/upload'
 
 ## **Notes**
 
-Pastikan token autentikasi (`Bearer Token`) valid sebelum mengakses endpoint ini. Folder default untuk penyimpanan adalah `uploads` jika parameter `folder` tidak diberikan.
+Pastikan token autentikasi (`Bearer Token`) valid sebelum mengakses endpoint ini.
 
 ---
