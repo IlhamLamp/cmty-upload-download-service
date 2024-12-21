@@ -108,7 +108,6 @@ curl --location --request POST 'https://yourdomain.com/api/v1/auth/media/upload'
 - **Format didukung**: File harus berupa salah satu tipe berikut:
   - `image/jpeg`
   - `image/png`
-- **Ukuran maksimum**: File tidak boleh melebihi 5MB (atau sesuai batas server).
 
 ---
 
