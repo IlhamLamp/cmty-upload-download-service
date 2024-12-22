@@ -67,17 +67,6 @@ curl --location --request POST 'https://yourdomain.com/api/v1/auth/media/upload'
 
 ### **Error Responses**
 
-#### **400 Bad Request**
-
-**Reason:** File tidak ditemukan atau format file tidak didukung.
-
-```json
-{
-  "status": "fail",
-  "message": "File is required"
-}
-```
-
 #### **401 Unauthorized**
 
 **Reason:** Token autentikasi tidak valid atau tidak ada.
