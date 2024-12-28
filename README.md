@@ -78,19 +78,6 @@ curl --location --request POST 'https://yourdomain.com/api/v1/auth/media/upload'
 }
 ```
 
-#### **500 Internal Server Error**
-
-**Reason:** Terjadi kesalahan di server.
-
-```json
-{
-  "status": "error",
-  "message": "An error occurred while processing the file."
-}
-```
-
----
-
 ## **Validation Rules**
 
 - **File wajib**: Parameter `file` harus diberikan.
