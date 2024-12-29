@@ -78,15 +78,6 @@ curl --location --request POST 'https://yourdomain.com/api/v1/auth/media/upload'
 }
 ```
 
-## **Validation Rules**
-
-- **File wajib**: Parameter `file` harus diberikan.
-- **Format didukung**: File harus berupa salah satu tipe berikut:
-  - `image/jpeg`
-  - `image/png`
-
----
-
 ## **Notes**
 
 Pastikan token autentikasi (`Bearer Token`) valid sebelum mengakses endpoint ini.
