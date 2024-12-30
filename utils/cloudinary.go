@@ -34,6 +34,8 @@ func (c *CloudinaryClient) UploadFile(file multipart.File, originalFileName stri
 	if err != nil {
 		return "An error occured wher upload", err
 	}
+	
+	log.Printf("Successfully upload image")
 	return uploadResult.SecureURL, nil
 }
 
