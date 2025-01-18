@@ -22,7 +22,7 @@ type Config struct {
 }
 
 func LoadConfig() Config {
-	// DEPLOYMENT VPS
+	// UNCOMMENT FOR RUNNING LOCALLY
 	// err := godotenv.Load()
 	// if err != nil {
 	// 	log.Fatalf("Error loading env file")
